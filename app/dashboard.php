@@ -26,8 +26,6 @@ foreach ($users as $user) {
     }
 }
 
-$search = trim($_GET['search'] ?? '');
-
 $allowedPeriods = ['week', 'month', 'year'];
 $period = $_GET['period'] ?? 'month';
 
@@ -36,29 +34,9 @@ if (!in_array($period, $allowedPeriods, true)) {
     $period = 'month';
 }
 
-// only pull transactions for the signed in user, then apply the search box if needed
-$userTransactions = array_filter($transactions, function ($transaction) use ($userId, $search) {
-    $belongsToUser = isset($transaction['userId']) && (int)$transaction['userId'] === (int)$userId;
-
-    if (!$belongsToUser) {
-        return false;
-    }
-
-    if ($search === '') {
-        return true;
-    }
-
-    $searchLower = strtolower($search);
-    $description = strtolower((string)($transaction['description'] ?? ''));
-    $category = strtolower((string)($transaction['category'] ?? ''));
-    $type = strtolower((string)($transaction['type'] ?? ''));
-    $amount = strtolower((string)($transaction['amount'] ?? ''));
-
-    return
-        strpos($description, $searchLower) !== false ||
-        strpos($category, $searchLower) !== false ||
-        strpos($type, $searchLower) !== false ||
-        strpos($amount, $searchLower) !== false;
+// only pull transactions for the signed in user
+$userTransactions = array_filter($transactions, function ($transaction) use ($userId) {
+    return isset($transaction['userId']) && (int)$transaction['userId'] === (int)$userId;
 });
 
 $currentMonth = date('Y-m');
@@ -91,11 +69,12 @@ $recentTransactions = array_slice($userTransactions, 0, 5);
 
 $categoryTotals = [];
 
-// adds up spending per category for the dashboard breakdown
+// adds up this month's spending per category, to match the cards above it
 foreach ($userTransactions as $transaction) {
     if (
-        isset($transaction['type'], $transaction['category'], $transaction['amount']) &&
-        $transaction['type'] === 'outgoing'
+        isset($transaction['type'], $transaction['category'], $transaction['amount'], $transaction['date']) &&
+        $transaction['type'] === 'outgoing' &&
+        strpos((string)$transaction['date'], $currentMonth) === 0
     ) {
         $categoryName = (string)$transaction['category'];
         $categoryTotals[$categoryName] = ($categoryTotals[$categoryName] ?? 0) + (float)$transaction['amount'];
@@ -218,19 +197,14 @@ $currentPage = 'dashboard';
         </div>
 
         <div class="dashboard-header-actions">
-            <form method="get" action="dashboard.php" class="header-search">
+            <form method="get" action="transactions.php" class="header-search ajax-form">
                 <label for="dashboard-search" class="visually-hidden">Search transactions</label>
                 <input
                     type="text"
                     id="dashboard-search"
                     name="search"
-                    placeholder="Search transactions..."
-                    value="<?php echo sanitiseOutput($search); ?>">
+                    placeholder="Search transactions...">
             </form>
-
-            <button type="button" class="theme-toggle-btn" id="themeToggle" aria-label="Toggle light and dark mode">
-                <i class="fas fa-moon"></i>
-            </button>
         </div>
     </header>
 
@@ -238,7 +212,7 @@ $currentPage = 'dashboard';
     <div class="mobile-dash-hero" aria-hidden="true">
         <div class="mobile-dash-hero-label">Primary Account Balance</div>
         <div class="mobile-dash-hero-amount">
-            <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyNetBalance, 2); ?>
+            <?php echo sanitiseOutput(formatMoney($monthlyNetBalance, $userCurrency, true)); ?>
         </div>
         <div class="mobile-dash-hero-sub">
             <span class="mobile-dash-hero-pill">This month</span>
@@ -247,13 +221,13 @@ $currentPage = 'dashboard';
             <div class="mobile-dash-mini-card">
                 <div class="mobile-dash-mini-label">Income</div>
                 <div class="mobile-dash-mini-amount">
-                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyIncome, 2); ?>
+                    <?php echo sanitiseOutput(formatMoney($monthlyIncome, $userCurrency)); ?>
                 </div>
             </div>
             <div class="mobile-dash-mini-card">
                 <div class="mobile-dash-mini-label">Expenses</div>
                 <div class="mobile-dash-mini-amount">
-                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyExpenses, 2); ?>
+                    <?php echo sanitiseOutput(formatMoney($monthlyExpenses, $userCurrency)); ?>
                 </div>
             </div>
         </div>
@@ -267,7 +241,7 @@ $currentPage = 'dashboard';
                 <div class="stat-icon stat-icon-balance"><i class="fas fa-wallet" aria-hidden="true"></i></div>
             </div>
             <p class="<?php echo $monthlyNetBalance < 0 ? 'amount-negative' : 'amount-positive'; ?>">
-                <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyNetBalance, 2); ?>
+                <?php echo sanitiseOutput(formatMoney($monthlyNetBalance, $userCurrency, true)); ?>
             </p>
             <span>This month</span>
         </div>
@@ -278,7 +252,7 @@ $currentPage = 'dashboard';
                 <div class="stat-icon stat-icon-income"><i class="fas fa-arrow-down" aria-hidden="true"></i></div>
             </div>
             <p class="amount-positive">
-                <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyIncome, 2); ?>
+                <?php echo sanitiseOutput(formatMoney($monthlyIncome, $userCurrency)); ?>
             </p>
             <span>Money received</span>
         </div>
@@ -289,7 +263,7 @@ $currentPage = 'dashboard';
                 <div class="stat-icon stat-icon-expense"><i class="fas fa-arrow-up" aria-hidden="true"></i></div>
             </div>
             <p class="amount-negative">
-                <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyExpenses, 2); ?>
+                <?php echo sanitiseOutput(formatMoney($monthlyExpenses, $userCurrency)); ?>
             </p>
             <span>Money spent</span>
         </div>
@@ -305,9 +279,9 @@ $currentPage = 'dashboard';
                     <p>Overview of outgoing transactions</p>
                 </div>
                 <div class="period-buttons" aria-label="Select chart period">
-                    <a href="dashboard.php?period=week&search=<?php echo urlencode($search); ?>" class="<?php echo ($period === 'week') ? 'period-link active-period ajax-link' : 'period-link ajax-link'; ?>">Week</a>
-                    <a href="dashboard.php?period=month&search=<?php echo urlencode($search); ?>" class="<?php echo ($period === 'month') ? 'period-link active-period ajax-link' : 'period-link ajax-link'; ?>">Month</a>
-                    <a href="dashboard.php?period=year&search=<?php echo urlencode($search); ?>" class="<?php echo ($period === 'year') ? 'period-link active-period ajax-link' : 'period-link ajax-link'; ?>">Year</a>
+                    <a href="dashboard.php?period=week" class="<?php echo ($period === 'week') ? 'period-link active-period ajax-link' : 'period-link ajax-link'; ?>">Week</a>
+                    <a href="dashboard.php?period=month" class="<?php echo ($period === 'month') ? 'period-link active-period ajax-link' : 'period-link ajax-link'; ?>">Month</a>
+                    <a href="dashboard.php?period=year" class="<?php echo ($period === 'year') ? 'period-link active-period ajax-link' : 'period-link ajax-link'; ?>">Year</a>
                 </div>
             </div>
 
@@ -328,7 +302,10 @@ $currentPage = 'dashboard';
 
         <!-- category breakdown panel -->
         <div class="panel category-panel">
-            <h3>Expense Categories</h3>
+            <div class="category-panel-heading">
+                <h3>Expense Categories</h3>
+                <p><?php echo date('F Y'); ?></p>
+            </div>
 
             <?php if (!empty($categoryTotals)): ?>
                 <?php foreach ($categoryTotals as $category => $total): ?>
@@ -336,7 +313,7 @@ $currentPage = 'dashboard';
                     <div class="category-row">
                         <div class="category-text">
                             <span><?php echo sanitiseOutput($category); ?></span>
-                            <span><?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($total, 2); ?></span>
+                            <span><?php echo sanitiseOutput(formatMoney($total, $userCurrency)); ?></span>
                         </div>
                         <div class="progress-bar" aria-hidden="true">
                             <div class="progress-fill" style="width: <?php echo round($percent); ?>%;"></div>
@@ -344,7 +321,7 @@ $currentPage = 'dashboard';
                     </div>
                 <?php endforeach; ?>
             <?php else: ?>
-                <p>No category data available yet. Add some outgoing transactions to see your spending breakdown.</p>
+                <p class="report-empty">No spending yet this month.</p>
             <?php endif; ?>
 
             <a href="categories.php" class="secondary-button ajax-link">View Category Details</a>
@@ -366,30 +343,32 @@ $currentPage = 'dashboard';
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th scope="col">Transaction</th>
-                            <th scope="col">Category</th>
                             <th scope="col">Date</th>
+                            <th scope="col">Description</th>
+                            <th scope="col">Category</th>
                             <th scope="col">Type</th>
-                            <th scope="col">Amount</th>
+                            <th scope="col" class="th-amount">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($recentTransactions as $transaction): ?>
+                            <?php $isIncoming = (($transaction['type'] ?? '') === 'incoming'); ?>
                             <tr>
+                                <td class="td-date"><?php echo sanitiseOutput(formatDisplayDate((string)($transaction['date'] ?? ''))); ?></td>
                                 <td class="td-desc"><?php echo sanitiseOutput($transaction['description'] ?? ''); ?></td>
                                 <td>
-                                    <span class="badge badge-default">
+                                    <span class="badge <?php echo categoryBadgeClass((string)($transaction['category'] ?? '')); ?>">
                                         <?php echo sanitiseOutput($transaction['category'] ?? ''); ?>
                                     </span>
                                 </td>
-                                <td class="td-date"><?php echo sanitiseOutput($transaction['date'] ?? ''); ?></td>
                                 <td>
-                                    <span class="type-pill <?php echo (($transaction['type'] ?? '') === 'incoming') ? 'type-in' : 'type-out'; ?>">
-                                        <?php echo sanitiseOutput(ucfirst($transaction['type'] ?? '')); ?>
+                                    <span class="type-pill <?php echo $isIncoming ? 'type-in' : 'type-out'; ?>">
+                                        <?php echo $isIncoming ? 'Incoming' : 'Outgoing'; ?>
                                     </span>
                                 </td>
-                                <td class="td-desc">
-                                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format((float)($transaction['amount'] ?? 0), 2); ?>
+                                <td class="td-amount <?php echo $isIncoming ? 'amount-positive' : 'amount-negative'; ?>">
+                                    <?php $amount = (float)($transaction['amount'] ?? 0); ?>
+                                    <?php echo sanitiseOutput(formatMoney($isIncoming ? $amount : -$amount, (string)($transaction['currency'] ?? $userCurrency), true)); ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -412,11 +391,11 @@ $currentPage = 'dashboard';
                     <div class="tx-card-body">
                         <div class="tx-card-desc"><?php echo sanitiseOutput($transaction['description'] ?? ''); ?></div>
                         <div class="tx-card-meta">
-                            <span class="badge badge-default"><?php echo sanitiseOutput($txCat); ?></span>
+                            <span class="badge <?php echo categoryBadgeClass($txCat); ?>"><?php echo sanitiseOutput($txCat); ?></span>
                         </div>
                     </div>
                     <div class="tx-card-amount <?php echo $txIsIncoming ? 'amount-positive' : 'amount-negative'; ?>">
-                        <?php echo $txIsIncoming ? '+' : '−'; ?><?php echo sanitiseOutput($txCurr); ?> <?php echo number_format($txAmt, 2); ?>
+                        <?php echo sanitiseOutput(formatMoney($txIsIncoming ? $txAmt : -$txAmt, $txCurr, true)); ?>
                     </div>
                 </div>
                 <?php endforeach; ?>

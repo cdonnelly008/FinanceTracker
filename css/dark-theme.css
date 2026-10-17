@@ -117,7 +117,7 @@ body.theme-dark .sidebar-nav a.active:focus-visible {
 }
 
 body.theme-dark .sidebar-nav a.logout-link {
-  color: #e41313 !important;
+  color: #f87171 !important;
 }
 
 /* =========================
@@ -637,6 +637,7 @@ body.theme-dark .report-cat-dot-4 { background: #818cf8; }
 body.theme-dark .report-cat-dot-5 { background: #a78bfa; }
 body.theme-dark .report-cat-dot-6 { background: #fb923c; }
 body.theme-dark .report-cat-dot-7 { background: #f87171; }
+body.theme-dark .report-cat-dot-other { background: #64748b; }
 
 body.theme-dark .report-category-total {
   border-top: 1px solid #334155;
@@ -850,4 +851,53 @@ body.theme-dark .mobile-cat-card {
 
 body.theme-dark .mobile-cat-name {
   color: #f1f5f9;
+}
+
+
+/* =========================
+   PAGINATION + REPORT FILTERS
+========================= */
+body.theme-dark .pagination-link {
+  background: #161b27;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+body.theme-dark a.pagination-link:hover,
+body.theme-dark a.pagination-link:focus {
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
+body.theme-dark .pagination-link.is-current {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+}
+
+body.theme-dark .pagination-bar,
+body.theme-dark .report-filter-field label,
+body.theme-dark .report-empty,
+body.theme-dark .category-panel-heading p {
+  color: #94a3b8;
+}
+
+body.theme-dark .sidebar-theme-btn {
+  color: #cbd5e1;
+}
+
+body.theme-dark .sidebar-theme-btn:hover,
+body.theme-dark .sidebar-theme-btn:focus-visible {
+  background: rgba(56, 189, 248, 0.08);
+  color: #38bdf8;
+}
+
+body.theme-dark .logout-link {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* report charts sit straight on their panel, same as light mode - no box inside a box */
+body.theme-dark .report-chart-container {
+  border: none;
+  box-shadow: none;
 }

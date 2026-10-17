@@ -11,7 +11,6 @@ $transactions = loadJsonData($transactionsFile);
 $users = loadJsonData($usersFile);
 
 $userId = $_SESSION['user_id'] ?? null;
-$userName = $_SESSION['user_name'] ?? 'User';
 
 $isAjax = isset($_GET['ajax']) && $_GET['ajax'] === '1';
 
@@ -134,34 +133,11 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     exit();
 }
 
-// maps category names to the badge colours
-function categoryBadgeClass(string $cat): string
-{
-    $map = [
-        'food' => 'badge-food',
-        'housing' => 'badge-housing',
-        'transport' => 'badge-transport',
-        'entertainment' => 'badge-entertainment',
-        'health' => 'badge-health',
-        'income' => 'badge-income',
-        'utilities' => 'badge-utilities',
-        'shopping' => 'badge-shopping',
-    ];
-
-    return $map[strtolower($cat)] ?? 'badge-default';
-}
-
-// makes the table dates a bit nicer to read
-function formatTransactionDate(string $date): string
-{
-    $timestamp = strtotime($date);
-
-    if ($timestamp === false) {
-        return $date;
-    }
-
-    return date('d M Y', $timestamp);
-}
+// only show one page of results at a time
+$pagination = paginate($filteredTransactions, (int)($_GET['page'] ?? 1), 20);
+$pageTransactions = $pagination['items'];
+$paginationBase = 'transactions.php?' . http_build_query(array_filter(['search' => $search, 'type' => $typeFilter, 'category' => $catFilter], 'strlen'));
+$paginationNoun = 'transactions';
 
 $pageTitle = 'Transactions';
 $currentPage = 'transactions';
@@ -177,7 +153,7 @@ $currentPage = 'transactions';
     <header class="dashboard-header">
         <div>
             <h2>Transactions</h2>
-            <p>Here are your transactions, <?php echo sanitiseOutput($userName); ?>.</p>
+            <p>Search, filter and export everything you've logged.</p>
         </div>
     </header>
 
@@ -188,7 +164,7 @@ $currentPage = 'transactions';
                 <h3>Monthly Income</h3>
                 <div class="stat-icon stat-icon-income"><i class="fas fa-arrow-down" aria-hidden="true"></i></div>
             </div>
-            <p class="amount-positive"><?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyIncome, 2); ?></p>
+            <p class="amount-positive"><?php echo sanitiseOutput(formatMoney($monthlyIncome, $userCurrency)); ?></p>
             <span>Incoming this month</span>
         </div>
 
@@ -197,7 +173,7 @@ $currentPage = 'transactions';
                 <h3>Monthly Expenses</h3>
                 <div class="stat-icon stat-icon-expense"><i class="fas fa-arrow-up" aria-hidden="true"></i></div>
             </div>
-            <p class="amount-negative"><?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($monthlyExpenses, 2); ?></p>
+            <p class="amount-negative"><?php echo sanitiseOutput(formatMoney($monthlyExpenses, $userCurrency)); ?></p>
             <span>Outgoing this month</span>
         </div>
 
@@ -207,21 +183,23 @@ $currentPage = 'transactions';
                 <div class="stat-icon stat-icon-net"><i class="fas fa-piggy-bank" aria-hidden="true"></i></div>
             </div>
             <p class="<?php echo $netSavings >= 0 ? 'amount-positive' : 'amount-negative'; ?>">
-                <?php echo ($netSavings >= 0 ? '+' : '−'); ?>
-                <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format(abs($netSavings), 2); ?>
+                <?php echo sanitiseOutput(formatMoney($netSavings, $userCurrency, true)); ?>
             </p>
             <span><?php echo $netSavings >= 0 ? 'Surplus this month' : 'Deficit this month'; ?></span>
         </div>
     </section>
 
     <!-- main transactions panel -->
-    <section class="panel" aria-labelledby="transactions-heading">
+    <section class="panel" id="transactions-panel" data-paginated aria-labelledby="transactions-heading">
         <!-- top row with title and quick actions -->
-        <div class="tx-top-bar">
-            <span class="tx-top-bar-title" id="transactions-heading">All transactions</span>
+        <div class="panel-header tx-top-bar">
+            <div>
+                <h3 id="transactions-heading">All Transactions</h3>
+                <p>Newest first</p>
+            </div>
             <div class="tx-top-actions">
-                <a href="transactions.php?export=csv&amp;search=<?php echo urlencode($search); ?>&amp;type=<?php echo urlencode($typeFilter); ?>&amp;category=<?php echo urlencode($catFilter); ?>" class="btn-secondary-sm">↓ Export CSV</a>
-                <a href="add-transaction.php" class="btn-primary-sm ajax-link">+ Add transaction</a>
+                <a href="transactions.php?export=csv&amp;search=<?php echo urlencode($search); ?>&amp;type=<?php echo urlencode($typeFilter); ?>&amp;category=<?php echo urlencode($catFilter); ?>" class="btn-secondary-sm"><i class="fas fa-download" aria-hidden="true"></i> Export CSV</a>
+                <a href="add-transaction.php" class="btn-primary-sm ajax-link"><i class="fas fa-plus" aria-hidden="true"></i> Add Transaction</a>
             </div>
         </div>
 
@@ -279,12 +257,12 @@ $currentPage = 'transactions';
                             <th scope="col">Date</th>
                             <th scope="col">Description</th>
                             <th scope="col">Category</th>
-                            <th scope="col">Amount</th>
                             <th scope="col">Type</th>
+                            <th scope="col" class="th-amount">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($filteredTransactions as $t): ?>
+                        <?php foreach ($pageTransactions as $t): ?>
                             <?php
                             $isIncoming = (($t['type'] ?? '') === 'incoming');
                             $amount = (float)($t['amount'] ?? 0);
@@ -293,7 +271,7 @@ $currentPage = 'transactions';
                             ?>
                             <tr>
                                 <td class="td-date">
-                                    <?php echo sanitiseOutput(formatTransactionDate((string)($t['date'] ?? ''))); ?>
+                                    <?php echo sanitiseOutput(formatDisplayDate((string)($t['date'] ?? ''))); ?>
                                 </td>
                                 <td class="td-desc">
                                     <?php echo sanitiseOutput((string)($t['description'] ?? '')); ?>
@@ -307,14 +285,13 @@ $currentPage = 'transactions';
                                         <span class="badge badge-default">Uncategorised</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="<?php echo $isIncoming ? 'amount-positive' : 'amount-negative'; ?>">
-                                    <?php echo $isIncoming ? '+' : '−'; ?>
-                                    <?php echo sanitiseOutput($transactionCurrency); ?> <?php echo number_format($amount, 2); ?>
-                                </td>
                                 <td>
                                     <span class="type-pill <?php echo $isIncoming ? 'type-in' : 'type-out'; ?>">
                                         <?php echo $isIncoming ? 'Incoming' : 'Outgoing'; ?>
                                     </span>
+                                </td>
+                                <td class="td-amount <?php echo $isIncoming ? 'amount-positive' : 'amount-negative'; ?>">
+                                    <?php echo sanitiseOutput(formatMoney($isIncoming ? $amount : -$amount, $transactionCurrency, true)); ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -326,8 +303,8 @@ $currentPage = 'transactions';
             <div class="mobile-tx-list" aria-label="Transactions list">
                 <?php
                 $grouped = [];
-                foreach ($filteredTransactions as $t) {
-                    $grouped[formatTransactionDate((string)($t['date'] ?? ''))][] = $t;
+                foreach ($pageTransactions as $t) {
+                    $grouped[formatDisplayDate((string)($t['date'] ?? ''))][] = $t;
                 }
                 foreach ($grouped as $dateLabel => $dayTxs):
                 ?>
@@ -351,7 +328,7 @@ $currentPage = 'transactions';
                             </div>
                         </div>
                         <div class="tx-card-amount <?php echo $isIncoming ? 'amount-positive' : 'amount-negative'; ?>">
-                            <?php echo $isIncoming ? '+' : '−'; ?><?php echo sanitiseOutput($txCurrency); ?> <?php echo number_format($amount, 2); ?>
+                            <?php echo sanitiseOutput(formatMoney($isIncoming ? $amount : -$amount, $txCurrency, true)); ?>
                         </div>
                     </div>
                     <?php endforeach; ?>
@@ -359,10 +336,7 @@ $currentPage = 'transactions';
                 <?php endforeach; ?>
             </div>
 
-            <div class="table-footer">
-                <span>Showing <?php echo count($filteredTransactions); ?> transaction(s)</span>
-                <span><?php echo date('F Y'); ?></span>
-            </div>
+            <?php require __DIR__ . '/includes/pagination.php'; ?>
         <?php else: ?>
             <!-- empty state if no transactions match -->
             <div class="tx-empty">

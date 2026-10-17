@@ -155,7 +155,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_password'])) {
     }
 }
 $pageTitle = 'Account';
-$currentPage = 'Account';
+$currentPage = 'account';
 $pageClass = 'theme-light';
 ?>
 
@@ -167,7 +167,7 @@ $pageClass = 'theme-light';
 <main class="dashboard-main" id="main-content">
     <header class="dashboard-header page-header-clean">
         <div>
-            <h2>Account Settings</h2>
+            <h2>Account</h2>
             <p>View and update your profile and security settings.</p>
         </div>
     </header>

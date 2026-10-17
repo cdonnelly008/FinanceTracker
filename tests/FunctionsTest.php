@@ -36,6 +36,33 @@ final class FunctionsTest extends TestCase
         $this->assertSame(8, getNextId($items, 'userId'));
     }
 
+    // ---- pagination ----
+
+    public function testPaginateReturnsTheRequestedPage(): void
+    {
+        $result = paginate(range(1, 45), 2, 20);
+
+        $this->assertSame(range(21, 40), $result['items']);
+        $this->assertSame(3, $result['totalPages']);
+        $this->assertSame(21, $result['from']);
+        $this->assertSame(40, $result['to']);
+    }
+
+    public function testPaginateClampsOutOfRangePages(): void
+    {
+        $this->assertSame(3, paginate(range(1, 45), 99, 20)['page']);
+        $this->assertSame(1, paginate(range(1, 45), -5, 20)['page']);
+    }
+
+    public function testPaginateHandlesAnEmptyList(): void
+    {
+        $result = paginate([], 1, 20);
+
+        $this->assertSame([], $result['items']);
+        $this->assertSame(1, $result['totalPages']);
+        $this->assertSame(0, $result['from']);
+    }
+
     // ---- output and input cleaning ----
 
     public function testSanitiseOutputEscapesHtml(): void
@@ -60,6 +87,22 @@ final class FunctionsTest extends TestCase
 
         $this->assertSame(2, findUserByEmail($users, 'b@example.com')['userId']);
         $this->assertNull(findUserByEmail($users, 'missing@example.com'));
+    }
+
+    // ---- categories ----
+
+    public function testUsersOnlySeeSharedAndTheirOwnCategories(): void
+    {
+        $categories = [
+            ['categoryId' => 1, 'name' => 'Food', 'userId' => null],
+            ['categoryId' => 2, 'name' => 'Mine', 'userId' => 1],
+            ['categoryId' => 3, 'name' => 'Someone else', 'userId' => 2],
+            ['categoryId' => 4, 'name' => 'Old default'],
+        ];
+
+        $names = array_column(getCategoriesForUser($categories, 1), 'name');
+
+        $this->assertSame(['Food', 'Mine', 'Old default'], $names);
     }
 
     // ---- json storage ----

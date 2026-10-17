@@ -140,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- email input -->
                 <div class="form-group">
                     <label for="email">
-                        <i class="fas fa-envelope"></i> Email Address *
+                        Email Address *
                     </label>
                     <div class="input-icon-wrap">
                         <span class="input-icon"><i class="fas fa-envelope"></i></span>
@@ -166,7 +166,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-group">
                     <div class="label-row">
                         <label for="password">
-                            <i class="fas fa-lock"></i> Password *
+                            Password *
                         </label>
                     </div>
                     <div class="input-icon-wrap" style="position: relative;">

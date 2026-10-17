@@ -111,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <!-- left side intro panel -->
         <div class="auth-hero-panel">
             <div class="auth-hero-badge">
-                <i class="fas fa-user-plus"></i>
+                <i class="fas fa-wallet"></i>
             </div>
             <h1>Join FinanceTracker</h1>
             <p>Create an account to start tracking your money.</p>
@@ -145,10 +145,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- show any validation errors at the top -->
             <?php if (!empty($errors)): ?>
-                <div class="auth-error-box">
-                    <?php foreach ($errors as $error): ?>
-                        <p class="error" style="margin-bottom: 5px;">⚠️ <?php echo sanitiseOutput($error); ?></p>
-                    <?php endforeach; ?>
+                <div class="error-summary" role="alert">
+                    <h3>
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Please fix the following errors:
+                    </h3>
+                    <ul>
+                        <?php foreach ($errors as $error): ?>
+                            <li><?php echo sanitiseOutput($error); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
                 </div>
             <?php endif; ?>
 
@@ -159,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-row">
                     <div class="form-group">
                         <label for="first_name">
-                            <i class="fas fa-user"></i> First Name *
+                            First Name *
                         </label>
                         <div class="input-icon-wrap">
                             <span class="input-icon"><i class="fas fa-user"></i></span>
@@ -176,7 +182,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     <div class="form-group">
                         <label for="last_name">
-                            <i class="fas fa-user"></i> Last Name *
+                            Last Name *
                         </label>
                         <div class="input-icon-wrap">
                             <span class="input-icon"><i class="fas fa-user"></i></span>
@@ -195,7 +201,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- email field -->
                 <div class="form-group">
                     <label for="email">
-                        <i class="fas fa-envelope"></i> Email Address *
+                        Email Address *
                     </label>
                     <div class="input-icon-wrap">
                         <span class="input-icon"><i class="fas fa-envelope"></i></span>
@@ -215,7 +221,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-row">
                     <div class="form-group">
                         <label for="password">
-                            <i class="fas fa-lock"></i> Password *
+                            Password *
                         </label>
                         <div class="input-icon-wrap">
                             <span class="input-icon"><i class="fas fa-lock"></i></span>
@@ -228,14 +234,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 aria-required="true"
                                 required>
                         </div>
-                        <small style="color: #64748b; font-size: 0.75rem; margin-top: 4px; display: block;">
+                        <small class="field-hint">
                             <i class="fas fa-info-circle"></i> At least 8 characters
                         </small>
                     </div>
 
                     <div class="form-group">
                         <label for="confirm_password">
-                            <i class="fas fa-check-circle"></i> Confirm Password *
+                            Confirm Password *
                         </label>
                         <div class="input-icon-wrap">
                             <span class="input-icon"><i class="fas fa-check-circle"></i></span>
@@ -254,7 +260,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- currency dropdown -->
                 <div class="form-group">
                     <label for="default_currency">
-                        <i class="fas fa-dollar-sign"></i> Default Currency *
+                        Default Currency *
                     </label>
                     <div class="input-icon-wrap">
                         <span class="input-icon"><i class="fas fa-globe"></i></span>

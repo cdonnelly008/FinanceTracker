@@ -13,11 +13,11 @@ $currenciesFile = __DIR__ . '/../data/currencies.json';
 $usersFile = __DIR__ . '/../data/users.json';
 
 $transactions = loadJsonData($transactionsFile);
-$categories = loadJsonData($categoriesFile);
+$categories = getCategoriesForUser(loadJsonData($categoriesFile), $_SESSION['user_id'] ?? null);
 $currencies = loadJsonData($currenciesFile);
 $users = loadJsonData($usersFile);
 
-$date = '';
+$date = date('Y-m-d');
 $description = '';
 $category = '';
 $amount = '';
@@ -26,7 +26,6 @@ $type = '';
 
 $errors = [];
 $userId = $_SESSION['user_id'] ?? null;
-$userName = $_SESSION['user_name'] ?? 'User';
 
 // start with the users default currency so the form feels quicker to fill in
 foreach ($users as $user) {
@@ -45,8 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $currency = trim($_POST['currency'] ?? '');
     $type = trim($_POST['type'] ?? '');
 
+    $parsedDate = DateTime::createFromFormat('Y-m-d', $date);
+
     if ($date === '') {
         $errors['date'] = 'Please enter a date.';
+    } elseif ($parsedDate === false || $parsedDate->format('Y-m-d') !== $date) {
+        $errors['date'] = 'Please enter a valid date.';
     }
 
     if ($description === '') {
@@ -55,6 +58,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($category === '') {
         $errors['category'] = 'Please select a category.';
+    } elseif (!in_array($category, array_column($categories, 'name'), true)) {
+        $errors['category'] = 'Invalid category selected.';
     }
 
     if ($amount === '') {
@@ -65,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($currency === '') {
         $errors['currency'] = 'Please select a currency.';
+    } elseif (!in_array($currency, array_column($currencies, 'code'), true)) {
+        $errors['currency'] = 'Invalid currency selected.';
     }
 
     if ($type === '') {
@@ -102,16 +109,10 @@ require_once __DIR__ . '/includes/sidebar.php';
 
 <main class="dashboard-main" id="main-content">
     <!-- page header -->
-    <header class="dashboard-header dashboard-header-tools">
+    <header class="dashboard-header">
         <div>
             <h2>Add Transaction</h2>
-            <p>Add a new transaction, <?php echo sanitiseOutput($userName); ?>.</p>
-        </div>
-
-        <div class="dashboard-header-actions">
-            <button type="button" class="theme-toggle-btn" id="themeToggle" aria-label="Toggle light and dark mode">
-                <i class="fas fa-moon"></i>
-            </button>
+            <p>Log money coming in or going out.</p>
         </div>
     </header>
 
@@ -145,7 +146,7 @@ require_once __DIR__ . '/includes/sidebar.php';
             <div class="amount-highlight-group">
                 <label for="amount">Amount *</label>
                 <div class="amount-input-wrap">
-                    <span class="amount-currency-symbol">£</span>
+                    <span class="amount-currency-symbol"><?php echo sanitiseOutput(currencySymbol($currency)); ?></span>
                     <input
                         type="number"
                         step="0.01"
@@ -188,6 +189,7 @@ require_once __DIR__ . '/includes/sidebar.php';
                         <?php foreach ($currencies as $currencyItem): ?>
                             <option
                                 value="<?php echo sanitiseOutput($currencyItem['code']); ?>"
+                                data-symbol="<?php echo sanitiseOutput(currencySymbol($currencyItem['code'])); ?>"
                                 <?php echo ($currency === $currencyItem['code']) ? 'selected' : ''; ?>>
                                 <?php echo sanitiseOutput($currencyItem['code'] . ' - ' . ($currencyItem['name'] ?? '')); ?>
                             </option>

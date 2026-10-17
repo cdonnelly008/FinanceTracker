@@ -41,12 +41,13 @@ function initialiseDataFiles(): void
     }
 
     if (!file_exists($categoriesFile)) {
+        // userId null means a shared default that every user sees
         $defaultCategories = [
-            ['categoryId' => 1, 'name' => 'Food'],
-            ['categoryId' => 2, 'name' => 'Transport'],
-            ['categoryId' => 3, 'name' => 'Bills'],
-            ['categoryId' => 4, 'name' => 'Entertainment'],
-            ['categoryId' => 5, 'name' => 'Salary']
+            ['categoryId' => 1, 'name' => 'Food', 'userId' => null],
+            ['categoryId' => 2, 'name' => 'Transport', 'userId' => null],
+            ['categoryId' => 3, 'name' => 'Bills', 'userId' => null],
+            ['categoryId' => 4, 'name' => 'Entertainment', 'userId' => null],
+            ['categoryId' => 5, 'name' => 'Income', 'userId' => null]
         ];
 
         file_put_contents($categoriesFile, json_encode($defaultCategories, JSON_PRETTY_PRINT));
@@ -108,6 +109,77 @@ function getNextId(array $items, string $idKey): int
 
     $ids = array_column($items, $idKey);
     return max($ids) + 1;
+}
+
+// The shared default categories (no userId) plus the ones this user created,
+// so nobody ever sees another user's custom categories
+function getCategoriesForUser(array $categories, $userId): array
+{
+    return array_values(array_filter($categories, function ($category) use ($userId) {
+        $ownerId = $category['userId'] ?? null;
+        return $ownerId === null || (int)$ownerId === (int)$userId;
+    }));
+}
+
+// Splits a list into pages so long tables don't go on forever.
+// out of range page numbers are clamped to the first / last page
+function paginate(array $items, int $page, int $perPage = 20): array
+{
+    $total = count($items);
+    $totalPages = max(1, (int)ceil($total / $perPage));
+    $page = min(max(1, $page), $totalPages);
+    $offset = ($page - 1) * $perPage;
+
+    return [
+        'items' => array_slice(array_values($items), $offset, $perPage),
+        'page' => $page,
+        'totalPages' => $totalPages,
+        'total' => $total,
+        'from' => $total === 0 ? 0 : $offset + 1,
+        'to' => min($offset + $perPage, $total),
+    ];
+}
+
+// Maps category names to their badge colours
+function categoryBadgeClass(string $category): string
+{
+    $map = [
+        'food' => 'badge-food',
+        'housing' => 'badge-housing',
+        'transport' => 'badge-transport',
+        'entertainment' => 'badge-entertainment',
+        'health' => 'badge-health',
+        'health & fitness' => 'badge-health',
+        'income' => 'badge-income',
+        'bills' => 'badge-utilities',
+        'utilities' => 'badge-utilities',
+        'shopping' => 'badge-shopping',
+    ];
+
+    return $map[strtolower($category)] ?? 'badge-default';
+}
+
+// Turns 2026-10-17 into 17 Oct 2026
+function formatDisplayDate(string $date): string
+{
+    $timestamp = strtotime($date);
+
+    return $timestamp === false ? $date : date('d M Y', $timestamp);
+}
+
+// One money format for the whole app: "GBP 1,234.50", or "+GBP 1,234.50" / "−GBP 12.00" when signed
+function formatMoney(float $amount, string $currency, bool $signed = false): string
+{
+    $sign = $amount < 0 ? '−' : ($signed ? '+' : '');
+
+    return $sign . $currency . ' ' . number_format(abs($amount), 2);
+}
+
+function currencySymbol(string $code): string
+{
+    $symbols = ['GBP' => '£', 'USD' => '$', 'EUR' => '€', 'JPY' => '¥', 'CAD' => 'C$'];
+
+    return $symbols[$code] ?? $code;
 }
 
 // Safe output for the page

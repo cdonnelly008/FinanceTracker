@@ -6,13 +6,12 @@ $currentPage = $currentPage ?? '';
 <!-- Mobile header -->
 <div class="mobile-header" id="mobile-header">
     <div class="mobile-header-brand">
-        <!-- pound sign used as the logo icon -->
-        <div class="logo-box">&pound;</div>
+        <div class="logo-box"><i class="fas fa-wallet" aria-hidden="true"></i></div>
         <span>FinanceTracker</span>
     </div>
 
     <div class="mobile-header-actions">
-        <!-- pound sign used as the logo icon -->
+        <!-- dark mode switch for mobile -->
         <button
             type="button"
             class="theme-toggle-btn mobile-theme-toggle"
@@ -33,7 +32,7 @@ $currentPage = $currentPage ?? '';
     </div>
 </div>
 
-<!-- hamburger button that opens the sidebar on mobile -->
+<!-- dark overlay behind the sidebar when it's open on mobile -->
 <div class="sidebar-overlay" id="sidebar-overlay" aria-hidden="true"></div>
 
 <aside class="sidebar" id="sidebar" aria-label="Sidebar navigation">
@@ -44,7 +43,7 @@ $currentPage = $currentPage ?? '';
 
     <div class="sidebar-brand">
         <div class="sidebar-brand-main">
-            <div class="logo-box">&pound;</div>
+            <div class="logo-box"><i class="fas fa-wallet" aria-hidden="true"></i></div>
 
             <div class="sidebar-brand-text">
                 <h1>FinanceTracker</h1>
@@ -105,6 +104,12 @@ $currentPage = $currentPage ?? '';
 
     <!-- add transaction button sits at the bottom of the sidebar -->
     <div class="sidebar-action">
+        <!-- desktop dark mode switch - lives here so it's on every page -->
+        <button type="button" class="sidebar-theme-btn" id="themeToggle" aria-label="Toggle light and dark mode">
+            <i class="fas fa-moon" aria-hidden="true"></i>
+            <span class="theme-toggle-label">Dark mode</span>
+        </button>
+
         <a href="add-transaction.php" data-page-name="New Transaction" class="btn-primary ajax-link">
             <i class="fas fa-plus"></i>
             <span>New Transaction</span>

@@ -27,6 +27,64 @@ $(document).ready(function () {
     loadPage(pageUrl, pageName);
   });
 
+  // page numbers only swap the table they belong to, so the page doesn't jump back to the top
+  $(document).on("click", ".js-page-link", function (e) {
+    var panel = $(this).closest("[data-paginated]");
+    var panelId = panel.attr("id");
+
+    if (!panelId) {
+      return; // no panel to swap - let the link load the page normally
+    }
+
+    e.preventDefault();
+
+    var pageUrl = $(this).attr("href");
+    var clickedLabel = $(this).attr("aria-label");
+
+    $.ajax({
+      method: "GET",
+      url: pageUrl + (pageUrl.indexOf("?") === -1 ? "?" : "&") + "ajax=1",
+      success: function (response) {
+        var newPanel = $("<div>").append($.parseHTML(response)).find("#" + panelId);
+
+        if (!newPanel.length) {
+          window.location.href = pageUrl;
+          return;
+        }
+
+        panel.replaceWith(newPanel);
+        history.pushState(null, null, pageUrl);
+
+        // keep keyboard users on the button they pressed (or the new current page)
+        var focusTarget = newPanel.find('.js-page-link[aria-label="' + clickedLabel + '"]');
+        if (!focusTarget.length) {
+          focusTarget = newPanel.find(".pagination-link.is-current").attr("tabindex", "-1");
+        }
+        if (focusTarget.length) {
+          focusTarget[0].focus({ preventScroll: true });
+        }
+      },
+      error: function () {
+        window.location.href = pageUrl;
+      },
+    });
+  });
+
+  // reports: the date boxes only matter for a custom range
+  $(document).on("change", "#report-period", function () {
+    var isCustom = $(this).val() === "custom";
+    $(".report-date-field").prop("hidden", !isCustom);
+    if (!isCustom) {
+      $(".report-date-field input").val("");
+    }
+  });
+
+  // add transaction: keep the symbol next to the amount in sync with the currency
+  $(document).on("change", "#currency", function () {
+    var symbol = $(this).find("option:selected").data("symbol") || "";
+    $(".amount-currency-symbol").text(symbol);
+  });
+
   $(document).on("submit", ".ajax-form", function (e) {
     e.preventDefault();
 

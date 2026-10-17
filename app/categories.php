@@ -34,10 +34,7 @@ foreach ($categories as &$category) {
 unset($category);
 
 // show the shared default categories as well as any ones this user made
-$userCategories = array_values(array_filter($categories, function ($category) use ($userId) {
-    $ownerId = $category['userId'] ?? null;
-    return $ownerId === null || (int)$ownerId === (int)$userId;
-}));
+$userCategories = getCategoriesForUser($categories, $userId);
 
 // add a category
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_category'])) {
@@ -213,10 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_category'])) {
 }
 
 // refreshes the list after any add, edit or delete
-$userCategories = array_values(array_filter($categories, function ($category) use ($userId) {
-    $ownerId = $category['userId'] ?? null;
-    return $ownerId === null || (int)$ownerId === (int)$userId;
-}));
+$userCategories = getCategoriesForUser($categories, $userId);
 
 // search filter
 $filteredCategories = array_values(array_filter($userCategories, function ($category) use ($search) {
@@ -299,12 +293,18 @@ function getCategoryDisplayMeta(string $name): array
     if (strpos($lower, 'salary') !== false || strpos($lower, 'income') !== false) {
         return ['icon' => 'fa-money-bill-wave', 'badge' => 'category-badge-green'];
     }
+    if (strpos($lower, 'bill') !== false || strpos($lower, 'utilit') !== false) {
+        return ['icon' => 'fa-file-invoice', 'badge' => 'category-badge-blue'];
+    }
+    if (strpos($lower, 'shop') !== false || strpos($lower, 'cloth') !== false) {
+        return ['icon' => 'fa-bag-shopping', 'badge' => 'category-badge-purple'];
+    }
 
     return ['icon' => 'fa-folder', 'badge' => 'category-badge-default'];
 }
 
 $pageTitle = 'Categories';
-$currentPage = 'Categories';
+$currentPage = 'categories';
 ?>
 
 <?php if (!$isAjax): ?>
@@ -316,7 +316,7 @@ $currentPage = 'Categories';
     <!-- page header -->
     <header class="dashboard-header page-header-clean categories-header">
         <div>
-            <h2>Category Management</h2>
+            <h2>Categories</h2>
             <p>Organise your transaction categories and keep everything tidy.</p>
         </div>
 
@@ -492,7 +492,6 @@ $currentPage = 'Categories';
                     <thead>
                         <tr>
                             <th scope="col">Category</th>
-                            <th scope="col">Code</th>
                             <th scope="col">Usage</th>
                             <th scope="col">Status</th>
                             <th scope="col" class="category-actions-heading">Actions</th>
@@ -524,12 +523,6 @@ $currentPage = 'Categories';
                                         </div>
                                         <span class="category-table-name"><?php echo sanitiseOutput($categoryNameText); ?></span>
                                     </div>
-                                </td>
-
-                                <td>
-                                    <span class="category-code-pill">
-                                        #<?php echo str_pad((string)$categoryId, 3, '0', STR_PAD_LEFT); ?>
-                                    </span>
                                 </td>
 
                                 <td>

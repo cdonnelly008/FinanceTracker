@@ -62,6 +62,9 @@
                 var icon = button.querySelector('i');
                 if (!icon) return;
                 icon.className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+
+                var label = button.querySelector('.theme-toggle-label');
+                if (label) label.textContent = isDark ? 'Light mode' : 'Dark mode';
             });
         }
     }

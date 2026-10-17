@@ -682,7 +682,14 @@ a:focus {
 }
 
 .logout-link {
-  color: #e41313 !important;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0 0 10px 10px !important;
+}
+
+.logout-link:hover,
+.logout-link:focus {
+  background: rgba(127, 29, 29, 0.35) !important;
 }
 
 .sidebar-action {
@@ -1893,14 +1900,16 @@ a:focus {
   display: inline-block;
 }
 
+/* on-brand green first, then clearly different hues so the slices are easy to tell apart.
+   keep in sync with the doughnut colours in js/chart.js */
 .report-cat-dot-0 { background: #16a34a; }
-.report-cat-dot-1 { background: #22c55e; }
-.report-cat-dot-2 { background: #84cc16; }
-.report-cat-dot-3 { background: #0f766e; }
-.report-cat-dot-4 { background: #65a30d; }
-.report-cat-dot-5 { background: #15803d; }
-.report-cat-dot-6 { background: #f59e0b; }
-.report-cat-dot-7 { background: #dc2626; }
+.report-cat-dot-1 { background: #3b82f6; }
+.report-cat-dot-2 { background: #f59e0b; }
+.report-cat-dot-3 { background: #8b5cf6; }
+.report-cat-dot-4 { background: #ec4899; }
+.report-cat-dot-5 { background: #14b8a6; }
+.report-cat-dot-6 { background: #f97316; }
+.report-cat-dot-7 { background: #ef4444; }
 
 .report-category-total {
   border-top: 1px solid #e8efeb;
@@ -2983,4 +2992,289 @@ a:focus {
 .mobile-theme-toggle:hover,
 .mobile-theme-toggle:focus {
   background: rgba(255, 255, 255, 0.28);
+}
+
+
+/* =========================
+   SIDEBAR THEME SWITCH
+========================= */
+.sidebar-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background-color 0.18s ease;
+}
+
+.sidebar-theme-btn i {
+  width: 18px;
+  text-align: center;
+}
+
+.sidebar-theme-btn:hover,
+.sidebar-theme-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* =========================
+   PAGINATION
+========================= */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 16px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--white);
+  color: #374151;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+a.pagination-link:hover,
+a.pagination-link:focus {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.pagination-link.is-current {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+}
+
+.pagination-link.is-disabled {
+  opacity: 0.4;
+}
+
+.pagination-gap {
+  padding: 0 4px;
+}
+
+/* =========================
+   REPORT FILTERS
+========================= */
+.report-filters {
+  align-items: flex-end;
+}
+
+.report-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-filter-field[hidden] {
+  display: none;
+}
+
+.report-filter-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.report-filter-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.report-filter-actions .btn-primary-sm,
+.report-filter-actions .btn-secondary-sm {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.report-empty {
+  color: var(--text-muted);
+  padding: 24px 0;
+  text-align: center;
+}
+
+.report-cat-dot-other {
+  background: #94a3b8;
+}
+
+/* amounts line up on the right like a statement */
+.data-table .th-amount,
+.data-table .td-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* =========================
+   DASHBOARD
+========================= */
+.chart-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-panel .dashboard-chart-container {
+  flex: 1;
+  min-height: 220px;
+  height: auto;
+}
+
+.category-panel-heading {
+  margin-bottom: 14px;
+}
+
+.category-panel-heading p {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .chart-panel .dashboard-chart-container {
+    flex: none;
+    height: 220px;
+  }
+
+  /* two filters per row on small screens, buttons full width underneath */
+  .tx-toolbar.report-filters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+
+  .report-filters .tx-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .report-filters .report-filter-actions {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    margin-left: 0;
+  }
+
+  .report-filter-actions .btn-primary-sm,
+  .report-filter-actions .btn-secondary-sm {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .pagination-bar {
+    flex-direction: column;
+  }
+}
+
+/* reports: the bar chart grows to match the height of the panel beside it */
+.report-trend-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.report-trend-panel .report-trend-chart {
+  flex: 1;
+}
+
+/* =========================
+   CONSISTENCY PASS
+========================= */
+/* wallet logo, same as the login and register pages */
+.logo-box i {
+  font-size: 1rem;
+}
+
+/* the sort control is a button, not a link */
+.category-sort-box,
+.category-sort-box:hover,
+.category-sort-box:focus {
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  /* stat cards: two per row on phones instead of three full-height cards */
+  .summary-cards {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .summary-cards .summary-card:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .summary-cards .summary-card {
+    padding: 14px;
+  }
+
+  .summary-cards .summary-card p {
+    font-size: 1.1rem;
+    margin: 4px 0 2px;
+  }
+
+  .summary-cards .summary-card span {
+    font-size: 0.8rem;
+  }
+
+  .summary-cards .stat-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+
+  /* login / register: keep a small logo and name above the form */
+  .auth-hero-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 0 18px;
+  }
+
+  .auth-hero-badge {
+    width: 52px;
+    height: 52px;
+    font-size: 1.3rem;
+    margin-bottom: 12px;
+  }
+
+  .auth-hero-panel h1 {
+    font-size: 1.6rem;
+    margin-bottom: 0;
+  }
+
+  .auth-hero-panel p,
+  .auth-hero-features {
+    display: none;
+  }
 }

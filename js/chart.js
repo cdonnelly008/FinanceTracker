@@ -165,9 +165,14 @@ function loadReportsCharts() {
 
         if (labels.length > 0) {
             // keeps light mode more on-brand and lets dark mode be a bit louder
-            var doughnutColors = isDarkMode()
+            // same colours as the dots in the list under the chart (.report-cat-dot-*)
+            var palette = isDarkMode()
                 ? ['#38bdf8', '#f472b6', '#fbbf24', '#34d399', '#818cf8', '#a78bfa', '#fb923c', '#f87171']
-                : ['#16a34a', '#22c55e', '#84cc16', '#0f766e', '#65a30d', '#15803d', '#f59e0b', '#dc2626'];
+                : ['#16a34a', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#ef4444'];
+            var otherColor = isDarkMode() ? '#64748b' : '#94a3b8';
+            var doughnutColors = labels.map(function (label, i) {
+                return label === 'Other' ? otherColor : palette[i % palette.length];
+            });
             reportsExpenseChartInstance = new Chart(expenseCanvas, {
                 type: 'doughnut',
                 data: {
@@ -175,7 +180,9 @@ function loadReportsCharts() {
                     datasets: [{
                         data: values,
                         backgroundColor: doughnutColors,
-                        borderWidth: 0,
+                        // a thin gap between slices makes small ones easier to see
+                        borderWidth: 2,
+                        borderColor: isDarkMode() ? '#161b27' : '#ffffff',
                         hoverOffset: 4
                     }]
                 },
@@ -190,7 +197,9 @@ function loadReportsCharts() {
                         title: {
                             display: false
                         },
+                        // on desktop the coloured list under the chart already acts as the legend
                         legend: {
+                            display: window.matchMedia('(max-width: 900px)').matches,
                             position: 'bottom',
                             labels: {
                                 boxWidth: 10,

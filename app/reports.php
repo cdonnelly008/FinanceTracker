@@ -30,7 +30,21 @@ $typeFilter = trim($_GET['type'] ?? 'all');
 $categoryFilter = trim($_GET['category'] ?? 'all');
 $startDate = trim($_GET['start_date'] ?? '');
 $endDate = trim($_GET['end_date'] ?? '');
-$chartFilter = trim($_GET['chart_filter'] ?? '30days');
+$period = trim($_GET['period'] ?? '');
+
+// one period drives the whole page - cards, charts and table all match
+$periodOptions = [
+    '7days' => 'Last 7 days',
+    '30days' => 'Last 30 days',
+    'month' => 'This month',
+    'year' => 'This year',
+    'all' => 'All time',
+    'custom' => 'Custom range',
+];
+
+if (!array_key_exists($period, $periodOptions)) {
+    $period = ($startDate !== '' || $endDate !== '') ? 'custom' : '30days';
+}
 
 $errors = [];
 
@@ -39,13 +53,6 @@ $allowedTypes = ['all', 'incoming', 'outgoing'];
 // stops invalid type values from being used in the filters
 if (!in_array($typeFilter, $allowedTypes, true)) {
     $typeFilter = 'all';
-}
-
-$allowedChartFilters = ['7days', '30days', 'month', 'year'];
-
-// same idea here for the chart range dropdown
-if (!in_array($chartFilter, $allowedChartFilters, true)) {
-    $chartFilter = '30days';
 }
 
 if ($startDate !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $startDate)) {
@@ -62,6 +69,20 @@ if ($startDate !== '' && $endDate !== '' && $startDate > $endDate) {
     $errors['date_range'] = 'Start date must be before end date.';
 }
 
+// the preset periods fill the date range in for you
+$today = date('Y-m-d');
+$presetRanges = [
+    '7days' => [date('Y-m-d', strtotime('-6 days')), $today],
+    '30days' => [date('Y-m-d', strtotime('-29 days')), $today],
+    'month' => [date('Y-m-01'), $today],
+    'year' => [date('Y-01-01'), $today],
+    'all' => ['', ''],
+];
+
+if ($period !== 'custom') {
+    [$startDate, $endDate] = $presetRanges[$period];
+}
+
 // only pull this users transactions for the report
 $userTransactions = array_filter($transactions, function ($transaction) use ($userId) {
     return isset($transaction['userId']) && (int)$transaction['userId'] === (int)$userId;
@@ -69,7 +90,7 @@ $userTransactions = array_filter($transactions, function ($transaction) use ($us
 
 // makes sure the category dropdown includes both saved categories and ones already used in transactions
 $categoryNamesFromFile = [];
-foreach ($categories as $category) {
+foreach (getCategoriesForUser($categories, $userId) as $category) {
     if (!empty($category['name'])) {
         $categoryNamesFromFile[] = (string)$category['name'];
     }
@@ -149,63 +170,10 @@ arsort($categoryTotals);
 
 $netTotal = $totalIncome - $totalExpenses;
 
-$chartTransactions = $filteredTransactions;
-$today = date('Y-m-d');
-
-// this one is just for the chart range, separate from the main filters above
-$chartTransactions = array_filter($chartTransactions, function ($transaction) use ($chartFilter, $today) {
-    $transactionDate = trim((string)($transaction['date'] ?? ''));
-    if ($transactionDate === '') {
-        return false;
-    }
-
-    $timestamp = strtotime($transactionDate);
-    if ($timestamp === false) {
-        return false;
-    }
-
-    switch ($chartFilter) {
-        case '7days':
-            return $transactionDate >= date('Y-m-d', strtotime('-6 days', strtotime($today)));
-
-        case '30days':
-            return $transactionDate >= date('Y-m-d', strtotime('-29 days', strtotime($today)));
-
-        case 'month':
-            return date('Y-m', $timestamp) === date('Y-m', strtotime($today));
-
-        case 'year':
-            return date('Y', $timestamp) === date('Y', strtotime($today));
-
-        default:
-            return true;
-    }
-});
-
-$chartIncome = 0;
-$chartExpenses = 0;
-$chartCategoryTotals = [];
-
-// totals for the two charts
-foreach ($chartTransactions as $transaction) {
-    $amount = (float)($transaction['amount'] ?? 0);
-    $type = trim((string)($transaction['type'] ?? ''));
-
-    if ($type === 'incoming') {
-        $chartIncome += $amount;
-    } elseif ($type === 'outgoing') {
-        $chartExpenses += $amount;
-
-        $categoryName = trim((string)($transaction['category'] ?? 'Unknown'));
-        if (!isset($chartCategoryTotals[$categoryName])) {
-            $chartCategoryTotals[$categoryName] = 0;
-        }
-
-        $chartCategoryTotals[$categoryName] += $amount;
-    }
-}
-
-arsort($chartCategoryTotals);
+// the charts show the same filtered data as the cards and table
+$chartIncome = $totalIncome;
+$chartExpenses = $totalExpenses;
+$chartCategoryTotals = $categoryTotals;
 
 $expenseChartLabels = array_values(array_keys($chartCategoryTotals));
 $expenseChartValues = array_values($chartCategoryTotals);
@@ -236,17 +204,6 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && empty($errors)) {
     exit();
 }
 
-// makes the report table dates easier to read
-function formatReportDate(string $date): string
-{
-    $timestamp = strtotime($date);
-    if ($timestamp === false) {
-        return $date;
-    }
-
-    return date('d M Y', $timestamp);
-}
-
 // text version of the chart data for screen readers
 $expenseSummaryParts = [];
 for ($i = 0; $i < count($expenseChartLabels); $i++) {
@@ -259,6 +216,38 @@ $expenseSummaryText = implode(', ', $expenseSummaryParts);
 $comparisonSummaryText =
     'Income: ' . $userCurrency . ' ' . number_format($chartIncome, 2) .
     ', Expenses: ' . $userCurrency . ' ' . number_format($chartExpenses, 2);
+
+// the current filters, so export and page links keep them
+$reportQuery = http_build_query(array_filter([
+    'period' => $period,
+    'start_date' => $period === 'custom' ? $startDate : '',
+    'end_date' => $period === 'custom' ? $endDate : '',
+    'type' => $typeFilter,
+    'category' => $categoryFilter,
+], 'strlen'));
+
+if ($period !== 'custom') {
+    $periodLabel = $periodOptions[$period];
+} elseif ($startDate === '' && $endDate === '') {
+    $periodLabel = 'All dates';
+} else {
+    $periodLabel = ($startDate !== '' ? formatDisplayDate($startDate) : 'Start') . ' – ' . ($endDate !== '' ? formatDisplayDate($endDate) : 'today');
+}
+
+$pagination = paginate($filteredTransactions, (int)($_GET['page'] ?? 1), 15);
+$paginationBase = 'reports.php?' . $reportQuery;
+$paginationNoun = 'transactions';
+
+// the list next to the doughnut shows the top 5 and lumps the rest into "Other"
+$categoryListTotals = array_slice($chartCategoryTotals, 0, 5, true);
+$otherCategoriesTotal = array_sum(array_slice($chartCategoryTotals, 5));
+if ($otherCategoriesTotal > 0) {
+    $categoryListTotals['Other'] = $otherCategoriesTotal;
+}
+
+// the doughnut uses the same grouping so its slices match the list
+$expenseChartLabels = array_keys($categoryListTotals);
+$expenseChartValues = array_values($categoryListTotals);
 
 $pageTitle = 'Reports';
 $currentPage = 'reports';
@@ -280,13 +269,73 @@ $currentPage = 'reports';
 
     <div class="reports-content">
 
+        <!-- one set of filters for the whole report -->
+        <form method="get" action="reports.php" class="tx-toolbar report-filters ajax-form" aria-label="Report filters">
+            <div class="report-filter-field">
+                <label for="report-period">Period</label>
+                <select name="period" id="report-period" class="tx-select">
+                    <?php foreach ($periodOptions as $value => $label): ?>
+                        <option value="<?php echo $value; ?>" <?php echo $period === $value ? 'selected' : ''; ?>><?php echo $label; ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="report-filter-field report-date-field" <?php echo $period === 'custom' ? '' : 'hidden'; ?>>
+                <label for="report-start">From</label>
+                <input type="date" name="start_date" id="report-start" class="tx-select" value="<?php echo sanitiseOutput($period === 'custom' ? $startDate : ''); ?>">
+            </div>
+
+            <div class="report-filter-field report-date-field" <?php echo $period === 'custom' ? '' : 'hidden'; ?>>
+                <label for="report-end">To</label>
+                <input type="date" name="end_date" id="report-end" class="tx-select" value="<?php echo sanitiseOutput($period === 'custom' ? $endDate : ''); ?>">
+            </div>
+
+            <div class="report-filter-field">
+                <label for="report-type">Type</label>
+                <select name="type" id="report-type" class="tx-select">
+                    <option value="all" <?php echo $typeFilter === 'all' ? 'selected' : ''; ?>>All types</option>
+                    <option value="incoming" <?php echo $typeFilter === 'incoming' ? 'selected' : ''; ?>>Incoming</option>
+                    <option value="outgoing" <?php echo $typeFilter === 'outgoing' ? 'selected' : ''; ?>>Outgoing</option>
+                </select>
+            </div>
+
+            <div class="report-filter-field">
+                <label for="report-category">Category</label>
+                <select name="category" id="report-category" class="tx-select">
+                    <option value="all">All categories</option>
+                    <?php foreach ($allCategories as $categoryOption): ?>
+                        <option value="<?php echo sanitiseOutput($categoryOption); ?>" <?php echo $categoryFilter === $categoryOption ? 'selected' : ''; ?>>
+                            <?php echo sanitiseOutput($categoryOption); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div class="report-filter-actions">
+                <button type="submit" class="btn-primary-sm">Apply</button>
+                <?php if ($period !== '30days' || $typeFilter !== 'all' || $categoryFilter !== 'all'): ?>
+                    <a href="reports.php" class="btn-secondary-sm ajax-link">Reset</a>
+                <?php endif; ?>
+            </div>
+        </form>
+
+        <?php if (!empty($errors)): ?>
+            <div class="error-summary" role="alert">
+                <ul>
+                    <?php foreach ($errors as $error): ?>
+                        <li><?php echo sanitiseOutput($error); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+
         <!-- mobile hero card -->
         <section class="mobile-reports-hero" aria-hidden="true">
             <div class="mobile-reports-hero-label">Total Spending</div>
             <div class="mobile-reports-hero-amount">
-                <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($totalExpenses, 2); ?>
+                <?php echo sanitiseOutput(formatMoney($totalExpenses, $userCurrency)); ?>
             </div>
-            <div class="mobile-reports-hero-sub">Based on your current filters</div>
+            <div class="mobile-reports-hero-sub"><?php echo sanitiseOutput($periodLabel); ?></div>
         </section>
 
         <!-- top report summary cards -->
@@ -299,9 +348,9 @@ $currentPage = 'reports';
                     </div>
                 </div>
                 <p class="amount-positive">
-                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($totalIncome, 2); ?>
+                    <?php echo sanitiseOutput(formatMoney($totalIncome, $userCurrency)); ?>
                 </p>
-                <span>Filtered results</span>
+                <span><?php echo sanitiseOutput($periodLabel); ?></span>
             </div>
 
             <div class="summary-card">
@@ -312,9 +361,9 @@ $currentPage = 'reports';
                     </div>
                 </div>
                 <p class="amount-negative">
-                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($totalExpenses, 2); ?>
+                    <?php echo sanitiseOutput(formatMoney($totalExpenses, $userCurrency)); ?>
                 </p>
-                <span>Filtered results</span>
+                <span><?php echo sanitiseOutput($periodLabel); ?></span>
             </div>
 
             <div class="summary-card">
@@ -325,8 +374,7 @@ $currentPage = 'reports';
                     </div>
                 </div>
                 <p class="<?php echo $netTotal >= 0 ? 'amount-positive' : 'amount-negative'; ?>">
-                    <?php echo ($netTotal >= 0 ? '+' : '-'); ?>
-                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format(abs($netTotal), 2); ?>
+                    <?php echo sanitiseOutput(formatMoney($netTotal, $userCurrency, true)); ?>
                 </p>
                 <span>Income minus expenses</span>
             </div>
@@ -350,22 +398,8 @@ $currentPage = 'reports';
                 <div class="panel-header report-chart-header">
                     <div>
                         <h3>Income vs Expenses</h3>
-                        <p>How income and spending compare right now</p>
+                        <p><?php echo sanitiseOutput($periodLabel); ?></p>
                     </div>
-
-                    <form method="get" action="reports.php" class="chart-filter-form">
-                        <input type="hidden" name="type" value="<?php echo sanitiseOutput($typeFilter); ?>">
-                        <input type="hidden" name="category" value="<?php echo sanitiseOutput($categoryFilter); ?>">
-                        <input type="hidden" name="start_date" value="<?php echo sanitiseOutput($startDate); ?>">
-                        <input type="hidden" name="end_date" value="<?php echo sanitiseOutput($endDate); ?>">
-
-                        <select name="chart_filter" class="chart-filter-select" onchange="this.form.submit()">
-                            <option value="7days" <?php echo $chartFilter === '7days' ? 'selected' : ''; ?>>Last 7 Days</option>
-                            <option value="30days" <?php echo $chartFilter === '30days' ? 'selected' : ''; ?>>Last 30 Days</option>
-                            <option value="month" <?php echo $chartFilter === 'month' ? 'selected' : ''; ?>>This Month</option>
-                            <option value="year" <?php echo $chartFilter === 'year' ? 'selected' : ''; ?>>This Year</option>
-                        </select>
-                    </form>
                 </div>
 
                 <?php if ($chartIncome > 0 || $chartExpenses > 0): ?>
@@ -381,7 +415,7 @@ $currentPage = 'reports';
                         Income versus expenses chart. Values shown are <?php echo sanitiseOutput($comparisonSummaryText); ?>.
                     </p>
                 <?php else: ?>
-                    <p>No income or expense data available for the selected chart period.</p>
+                    <p class="report-empty">No income or expenses in this period.</p>
                 <?php endif; ?>
             </section>
 
@@ -407,46 +441,33 @@ $currentPage = 'reports';
                         Expense breakdown by category. Values shown are <?php echo sanitiseOutput($expenseSummaryText); ?>.
                     </p>
                 <?php else: ?>
-                    <p>No expense data available for the selected chart period.</p>
+                    <p class="report-empty">No spending in this period.</p>
                 <?php endif; ?>
 
                 <?php if (!empty($chartCategoryTotals)): ?>
                     <div class="report-category-stack">
-                        <?php
-                        $displayedCategories = 0;
-                        $colorIdx = 0;
-                        foreach ($chartCategoryTotals as $categoryName => $total):
-                            if ($displayedCategories >= 4) {
-                                break;
-                            }
-                            $displayedCategories++;
-                            $dotColorIndex = $colorIdx % 8;
-                            $colorIdx++;
+                        <?php $colorIdx = 0; ?>
+                        <?php foreach ($categoryListTotals as $categoryName => $total): ?>
+                            <?php
+                            $dotClass = $categoryName === 'Other' ? 'report-cat-dot-other' : 'report-cat-dot-' . ($colorIdx++ % 8);
                             $pct = $chartExpenses > 0 ? ($total / $chartExpenses * 100) : 0;
-                        ?>
+                            ?>
                             <div class="report-category-row">
                                 <span class="report-cat-label">
-                                    <span class="report-cat-dot report-cat-dot-<?php echo $dotColorIndex; ?>"></span>
+                                    <span class="report-cat-dot <?php echo $dotClass; ?>"></span>
                                     <?php echo sanitiseOutput($categoryName); ?> (<?php echo number_format($pct, 1); ?>%)
                                 </span>
-                                <strong><?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($total, 2); ?></strong>
+                                <strong><?php echo sanitiseOutput(formatMoney($total, $userCurrency)); ?></strong>
                             </div>
                         <?php endforeach; ?>
                         <div class="report-category-row report-category-total">
                             <span>Total</span>
-                            <strong class="report-total-value"><?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($chartExpenses, 2); ?></strong>
+                            <strong class="report-total-value"><?php echo sanitiseOutput(formatMoney($chartExpenses, $userCurrency)); ?></strong>
                         </div>
                     </div>
 
                     <div class="mobile-report-category-cards">
-                        <?php
-                        $displayedCategories = 0;
-                        foreach ($chartCategoryTotals as $categoryName => $total):
-                            if ($displayedCategories >= 4) {
-                                break;
-                            }
-                            $displayedCategories++;
-                        ?>
+                        <?php foreach ($categoryListTotals as $categoryName => $total): ?>
                             <div class="mobile-report-category-card">
                                 <div class="mobile-report-category-left">
                                     <div class="mobile-report-category-icon">
@@ -458,7 +479,7 @@ $currentPage = 'reports';
                                     </div>
                                 </div>
                                 <div class="mobile-report-category-amount">
-                                    <?php echo sanitiseOutput($userCurrency); ?> <?php echo number_format($total, 2); ?>
+                                    <?php echo sanitiseOutput(formatMoney($total, $userCurrency)); ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
@@ -468,16 +489,16 @@ $currentPage = 'reports';
         </section>
 
         <!-- detailed transactions table -->
-        <section class="panel report-table-panel">
+        <section class="panel report-table-panel" id="report-transactions" data-paginated>
             <div class="panel-header">
                 <div>
-                    <h3>Detailed Spending Breakdown</h3>
-                    <p><?php echo count($filteredTransactions); ?> result(s)</p>
+                    <h3>Transactions in this report</h3>
+                    <p><?php echo sanitiseOutput($periodLabel); ?></p>
                 </div>
 
                 <a
-                    href="reports.php?export=csv&amp;type=<?php echo urlencode($typeFilter); ?>&amp;category=<?php echo urlencode($categoryFilter); ?>&amp;start_date=<?php echo urlencode($startDate); ?>&amp;end_date=<?php echo urlencode($endDate); ?>&amp;chart_filter=<?php echo urlencode($chartFilter); ?>"
-                    class="btn-primary-sm">
+                    href="<?php echo sanitiseOutput('reports.php?export=csv&' . $reportQuery); ?>"
+                    class="btn-secondary-sm">
                     <i class="fas fa-download" aria-hidden="true"></i> Export CSV
                 </a>
             </div>
@@ -490,38 +511,42 @@ $currentPage = 'reports';
                                 <th scope="col">Date</th>
                                 <th scope="col">Description</th>
                                 <th scope="col">Category</th>
-                                <th scope="col">Amount</th>
-                                <th scope="col">Currency</th>
                                 <th scope="col">Type</th>
+                                <th scope="col" class="th-amount">Amount</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($filteredTransactions as $transaction): ?>
+                            <?php foreach ($pagination['items'] as $transaction): ?>
                                 <?php
                                 $transactionCurrency = (string)($transaction['currency'] ?? $userCurrency);
                                 $isIncoming = (($transaction['type'] ?? '') === 'incoming');
                                 ?>
                                 <tr>
-                                    <td class="td-date"><?php echo sanitiseOutput(formatReportDate((string)($transaction['date'] ?? ''))); ?></td>
+                                    <td class="td-date"><?php echo sanitiseOutput(formatDisplayDate((string)($transaction['date'] ?? ''))); ?></td>
                                     <td class="td-desc"><?php echo sanitiseOutput((string)($transaction['description'] ?? '')); ?></td>
-                                    <td><?php echo sanitiseOutput((string)($transaction['category'] ?? '')); ?></td>
-                                    <td class="<?php echo $isIncoming ? 'amount-positive' : 'amount-negative'; ?>">
-                                        <?php echo $isIncoming ? '+' : '-'; ?>
-                                        <?php echo sanitiseOutput($transactionCurrency); ?> <?php echo number_format((float)($transaction['amount'] ?? 0), 2); ?>
+                                    <td>
+                                        <span class="badge <?php echo categoryBadgeClass((string)($transaction['category'] ?? '')); ?>">
+                                            <?php echo sanitiseOutput((string)($transaction['category'] ?? '')); ?>
+                                        </span>
                                     </td>
-                                    <td><?php echo sanitiseOutput($transactionCurrency); ?></td>
                                     <td>
                                         <span class="type-pill <?php echo $isIncoming ? 'type-in' : 'type-out'; ?>">
-                                            <?php echo sanitiseOutput(ucfirst((string)($transaction['type'] ?? ''))); ?>
+                                            <?php echo $isIncoming ? 'Incoming' : 'Outgoing'; ?>
                                         </span>
+                                    </td>
+                                    <td class="td-amount <?php echo $isIncoming ? 'amount-positive' : 'amount-negative'; ?>">
+                                        <?php $amount = (float)($transaction['amount'] ?? 0); ?>
+                                        <?php echo sanitiseOutput(formatMoney($isIncoming ? $amount : -$amount, $transactionCurrency, true)); ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+
+                <?php require __DIR__ . '/includes/pagination.php'; ?>
             <?php else: ?>
-                <p>No transactions found for the selected filters.</p>
+                <p class="report-empty">No transactions match these filters.</p>
             <?php endif; ?>
         </section>
 
