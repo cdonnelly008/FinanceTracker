@@ -45,10 +45,12 @@ Security was a focus throughout:
 ### Requirements
 
 - PHP 8.1 or newer
-- Apache (for example XAMPP or MAMP), or PHP's built-in server for local testing
+- Apache (for example Uniform Server, XAMPP or MAMP), or PHP's built-in server for local testing
 - [Composer](https://getcomposer.org/), only needed to run the tests
 
 ### Run it
+
+**With Uniform Server (UniServer Zero):** copy the project folder into `UniServerZ\www`, open `UniController.exe`, click **Start Apache**, then go to `http://localhost/<folder-name>/`. Make sure PHP 8.1+ is selected in UniController.
 
 **With XAMPP or MAMP:** copy the project folder into `htdocs`, start Apache, then go to `http://localhost/<folder-name>/`.
 
@@ -61,6 +63,16 @@ php -S localhost:8000
 Then open <http://localhost:8000> and register an account. The JSON data files are created automatically on first run.
 
 > **Note:** PHP's built-in server ignores `.htaccess`, so it doesn't block access to `data/`. Use it for local development only. On nginx, add `location /data/ { deny all; }` to the server config.
+
+### Load demo data (optional)
+
+To try the app with realistic data, run:
+
+```bash
+php tools/seed-demo.php
+```
+
+This creates two demo accounts, `alex@demo.com` (GBP) and `jordan@demo.com` (USD), both with the password `demo1234`, filled with a year's worth of transactions up to today. Running it again replaces the demo accounts with fresh data and leaves other accounts alone.
 
 ### Run the tests
 
@@ -81,7 +93,7 @@ composer test
 │   ├── categories.php, reports.php, account.php
 │   └── includes/        # header, sidebar, footer
 ├── css/                 # main styles and dark theme
-├── js/                  # charts, AJAX navigation, theme toggle
+├── js/                  # charts and AJAX navigation
 ├── data/                # JSON storage (user data is git-ignored)
 └── tests/               # PHPUnit tests
 ```
@@ -93,3 +105,7 @@ composer test
 - Budgets and spending alerts per category
 - Live exchange rates, so totals across currencies can be converted
 - Login rate limiting
+
+## License
+
+[MIT](LICENSE)
