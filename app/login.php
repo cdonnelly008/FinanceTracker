@@ -2,6 +2,9 @@
 session_start();
 require_once __DIR__ . '/functions.php';
 initialiseDataFiles();
+
+// reject any form post that doesn't carry this session's csrf token
+verifyCsrfTokenOrFail();
 authenticateRememberedUser();
 
 // no point showing login again if they are already signed in
@@ -133,6 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- login form -->
             <form action="login.php" method="post" novalidate id="loginForm">
+                <?php echo csrfField(); ?>
                 <!-- email input -->
                 <div class="form-group">
                     <label for="email">

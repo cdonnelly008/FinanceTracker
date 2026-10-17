@@ -4,6 +4,9 @@ require_once __DIR__ . '/functions.php';
 
 initialiseDataFiles();
 
+// reject any form post that doesn't carry this session's csrf token
+verifyCsrfTokenOrFail();
+
 $transactionsFile = __DIR__ . '/../data/transactions.json';
 $categoriesFile = __DIR__ . '/../data/categories.json';
 $currenciesFile = __DIR__ . '/../data/currencies.json';
@@ -137,6 +140,7 @@ require_once __DIR__ . '/includes/sidebar.php';
 
         <!-- add transaction form -->
         <form action="add-transaction.php" method="post" novalidate>
+            <?php echo csrfField(); ?>
             <!-- big amount field at the top -->
             <div class="amount-highlight-group">
                 <label for="amount">Amount *</label>

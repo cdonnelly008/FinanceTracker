@@ -6,6 +6,9 @@ require_once __DIR__ . '/functions.php';
 // makes sure the data files exist before we try to read them
 initialiseDataFiles();
 
+// reject any form post that doesn't carry this session's csrf token
+verifyCsrfTokenOrFail();
+
 // paths to the json files we need for this page
 $usersFile = __DIR__ . '/../data/users.json';
 $currenciesFile = __DIR__ . '/../data/currencies.json';
@@ -196,6 +199,7 @@ $pageClass = 'theme-light';
         <?php endif; ?>
 
         <form action="account.php" method="post" novalidate>
+            <?php echo csrfField(); ?>
             <div class="form-row">
                 <div class="form-group">
                     <label for="first_name"><i class="fas fa-user"></i> First Name *</label>
@@ -304,6 +308,7 @@ $pageClass = 'theme-light';
         <?php endif; ?>
 
         <form action="account.php" method="post" novalidate>
+            <?php echo csrfField(); ?>
             <div class="form-group">
                 <label for="current_password"><i class="fas fa-key"></i> Current Password *</label>
                 <input

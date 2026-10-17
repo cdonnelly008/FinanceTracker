@@ -349,3 +349,42 @@ function authenticateRememberedUser(): bool
     startAuthenticatedSession($matchedUser);
     return true;
 }
+
+// CSRF protection
+// every form that changes data carries a random per-session token, and we
+// reject any POST that doesn't send it back. this stops another website
+// submitting forms on behalf of a logged in user
+function getCsrfToken(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['csrf_token'];
+}
+
+// hidden input to drop inside each post form
+function csrfField(): string
+{
+    return '<input type="hidden" name="csrf_token" value="' . sanitiseOutput(getCsrfToken()) . '">';
+}
+
+function isValidCsrfToken(?string $token): bool
+{
+    return is_string($token)
+        && !empty($_SESSION['csrf_token'])
+        && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+// call at the top of any page that handles post requests
+function verifyCsrfTokenOrFail(): void
+{
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        return;
+    }
+
+    if (!isValidCsrfToken($_POST['csrf_token'] ?? null)) {
+        http_response_code(403);
+        exit('Your session has expired or the request was invalid. Please go back, refresh the page and try again.');
+    }
+}

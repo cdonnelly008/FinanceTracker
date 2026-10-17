@@ -4,6 +4,9 @@ require_once __DIR__ . '/functions.php';
 
 initialiseDataFiles();
 
+// reject any form post that doesn't carry this session's csrf token
+verifyCsrfTokenOrFail();
+
 $categoriesFile = __DIR__ . '/../data/categories.json';
 $transactionsFile = __DIR__ . '/../data/transactions.json';
 
@@ -369,6 +372,7 @@ $currentPage = 'Categories';
             </div>
 
             <form action="categories.php" method="post" novalidate>
+                <?php echo csrfField(); ?>
                 <div class="form-group">
                     <label for="category_name"><i class="fas fa-pen"></i> Category Name *</label>
                     <input
@@ -409,6 +413,7 @@ $currentPage = 'Categories';
             </div>
 
             <form action="categories.php" method="post" novalidate>
+                <?php echo csrfField(); ?>
                 <input type="hidden" name="edit_id" value="<?php echo (int)$editId; ?>">
 
                 <div class="form-row">
@@ -554,6 +559,7 @@ $currentPage = 'Categories';
                                             </a>
 
                                             <form action="categories.php" method="post" style="display:inline;">
+                                                <?php echo csrfField(); ?>
                                                 <input type="hidden" name="delete_id" value="<?php echo $categoryId; ?>">
                                                 <button
                                                     type="submit"
@@ -604,6 +610,7 @@ $currentPage = 'Categories';
                                             <i class="fas fa-pen" aria-hidden="true"></i>
                                         </a>
                                         <form action="categories.php" method="post" style="display:inline;">
+                                            <?php echo csrfField(); ?>
                                             <input type="hidden" name="delete_id" value="<?php echo $catId; ?>">
                                             <button type="submit" name="delete_category"
                                                 class="category-icon-action delete-link"

@@ -9,6 +9,9 @@ if (isset($_SESSION['user_id'])) {
 
 initialiseDataFiles();
 
+// reject any form post that doesn't carry this session's csrf token
+verifyCsrfTokenOrFail();
+
 $currencies = loadJsonData(__DIR__ . '/../data/currencies.json');
 
 $firstName = '';
@@ -151,6 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             <!-- register form -->
             <form action="register.php" method="post" novalidate>
+                <?php echo csrfField(); ?>
                 <!-- first and last name row -->
                 <div class="form-row">
                     <div class="form-group">
