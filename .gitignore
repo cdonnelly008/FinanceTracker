@@ -1,6 +1,7 @@
 # user data is created on first run - never commit real accounts or transactions
 data/users.json
 data/transactions.json
+data/categories.json
 data/*.tmp
 
 # editor / OS files
