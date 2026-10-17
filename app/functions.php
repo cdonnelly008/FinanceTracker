@@ -6,7 +6,13 @@ function initialiseDataFiles(): void
     $dataDir = __DIR__ . '/../data';
 
     if (!file_exists($dataDir)) {
-        mkdir($dataDir, 0777, true);
+        mkdir($dataDir, 0750, true);
+    }
+
+    // stop the web server handing out the json files directly (Apache)
+    $htaccessFile = $dataDir . '/.htaccess';
+    if (!file_exists($htaccessFile)) {
+        file_put_contents($htaccessFile, "Require all denied\n");
     }
 
     $usersFile = $dataDir . '/users.json';
@@ -54,17 +60,43 @@ function loadJsonData(string $filePath): array
         return [];
     }
 
-    $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $handle = fopen($filePath, 'r');
+    if ($handle === false) {
+        return [];
+    }
+
+    // shared lock so we never read a file halfway through being written
+    flock($handle, LOCK_SH);
+    $json = stream_get_contents($handle);
+    flock($handle, LOCK_UN);
+    fclose($handle);
+
+    $data = json_decode((string)$json, true);
 
     return is_array($data) ? $data : [];
 }
 
 // Saves a json file
+// writes to a temp file first then swaps it in, so a crash or two requests
+// at once can't leave a half-written or corrupted file behind
 function saveJsonData(string $filePath, array $data): bool
 {
     $json = json_encode($data, JSON_PRETTY_PRINT);
-    return file_put_contents($filePath, $json) !== false;
+    if ($json === false) {
+        return false;
+    }
+
+    $tempFile = $filePath . '.' . bin2hex(random_bytes(6)) . '.tmp';
+    if (file_put_contents($tempFile, $json, LOCK_EX) === false) {
+        return false;
+    }
+
+    if (!rename($tempFile, $filePath)) {
+        @unlink($tempFile);
+        return false;
+    }
+
+    return true;
 }
 
 // Grab the next id
