@@ -388,3 +388,22 @@ function verifyCsrfTokenOrFail(): void
         exit('Your session has expired or the request was invalid. Please go back, refresh the page and try again.');
     }
 }
+
+// Stops spreadsheet formula injection in csv exports.
+// if a cell starts with = + - @ (or tab / carriage return) Excel and Sheets
+// will run it as a formula, so we prefix it with a ' to force it to be text.
+// plain numbers like -12.50 are left alone so amounts still add up
+function sanitiseCsvCell($value): string
+{
+    $value = (string)$value;
+
+    if ($value === '' || is_numeric($value)) {
+        return $value;
+    }
+
+    if (in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)) {
+        return "'" . $value;
+    }
+
+    return $value;
+}

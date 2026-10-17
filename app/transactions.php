@@ -120,14 +120,14 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     fputcsv($output, ['Date', 'Description', 'Category', 'Amount', 'Currency', 'Type']);
 
     foreach ($filteredTransactions as $t) {
-        fputcsv($output, [
+        fputcsv($output, array_map('sanitiseCsvCell', [
             $t['date'] ?? '',
             $t['description'] ?? '',
             $t['category'] ?? '',
             $t['amount'] ?? '',
             $t['currency'] ?? $userCurrency,
             $t['type'] ?? ''
-        ]);
+        ]));
     }
 
     fclose($output);

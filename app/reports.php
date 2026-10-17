@@ -222,14 +222,14 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv' && empty($errors)) {
     fputcsv($output, ['Date', 'Description', 'Category', 'Amount', 'Currency', 'Type']);
 
     foreach ($filteredTransactions as $transaction) {
-        fputcsv($output, [
+        fputcsv($output, array_map('sanitiseCsvCell', [
             $transaction['date'] ?? '',
             $transaction['description'] ?? '',
             $transaction['category'] ?? '',
             $transaction['amount'] ?? '',
             $transaction['currency'] ?? $userCurrency,
             $transaction['type'] ?? ''
-        ]);
+        ]));
     }
 
     fclose($output);
