@@ -2,8 +2,8 @@
 
 <!-- Scripts needed for the app to work - jquery for ajax, chart.js for the graphs -->
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="/FinanceTrackerApp/js/chart.js"></script>
-<script src="/FinanceTrackerApp/js/ajax.js"></script>
+<script src="../js/chart.js"></script>
+<script src="../js/ajax.js"></script>
 
 <script>
     // this function sets up the dark/light mode toggle buttons
