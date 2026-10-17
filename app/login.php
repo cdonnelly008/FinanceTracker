@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once __DIR__ . '/functions.php';
+startSecureSession();
 initialiseDataFiles();
 
 // reject any form post that doesn't carry this session's csrf token

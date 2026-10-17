@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once __DIR__ . '/functions.php';
+startSecureSession();
 
 // makes sure the json data files exist before anything else tries to use them
 initialiseDataFiles();

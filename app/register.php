@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once __DIR__ . '/functions.php';
+startSecureSession();
 
 if (isset($_SESSION['user_id'])) {
     header('Location: dashboard.php');

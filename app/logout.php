@@ -1,6 +1,6 @@
 <?php
-session_start();
 require_once __DIR__ . '/functions.php';
+startSecureSession();
 
 // clears the saved remember me token as well so logout fully signs them out
 initialiseDataFiles();
