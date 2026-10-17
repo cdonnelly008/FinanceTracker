@@ -198,7 +198,7 @@ function clearRememberMeTokenForUserId(int $userId): void
             continue;
         }
 
-        unset($user['rememberTokenHash'], $user['rememberTokenExpiresAt']);
+        unset($user['rememberSelector'], $user['rememberTokenHash'], $user['rememberTokenExpiresAt']);
         $updated = true;
         break;
     }
@@ -209,12 +209,41 @@ function clearRememberMeTokenForUserId(int $userId): void
     }
 }
 
+// Remember me uses the "selector:validator" pattern:
+// - the selector is a random public id we can look the user up by directly
+// - the validator is a secret we only store a sha256 hash of
+// so checking a cookie is one lookup + one constant-time compare,
+// instead of running bcrypt against every user in the file
+function generateRememberMeToken(): array
+{
+    return [
+        'selector' => bin2hex(random_bytes(12)),
+        'validator' => bin2hex(random_bytes(32)),
+    ];
+}
+
+function hashRememberMeValidator(string $validator): string
+{
+    return hash('sha256', $validator);
+}
+
+// Splits a cookie value into selector and validator, or null if it looks wrong
+function parseRememberMeCookie(string $cookie): ?array
+{
+    $parts = explode(':', $cookie, 2);
+    if (count($parts) !== 2 || !ctype_xdigit($parts[0]) || !ctype_xdigit($parts[1])) {
+        return null;
+    }
+
+    return ['selector' => $parts[0], 'validator' => $parts[1]];
+}
+
 // Saves a fresh token when remember me is ticked
 function persistRememberMeToken(array $user): void
 {
     $usersFile = getUsersFilePath();
     $users = loadJsonData($usersFile);
-    $token = bin2hex(random_bytes(32));
+    $token = generateRememberMeToken();
     $expiresAt = time() + getRememberMeDuration();
 
     foreach ($users as &$storedUser) {
@@ -222,14 +251,15 @@ function persistRememberMeToken(array $user): void
             continue;
         }
 
-        $storedUser['rememberTokenHash'] = password_hash($token, PASSWORD_DEFAULT);
+        $storedUser['rememberSelector'] = $token['selector'];
+        $storedUser['rememberTokenHash'] = hashRememberMeValidator($token['validator']);
         $storedUser['rememberTokenExpiresAt'] = date('c', $expiresAt);
         break;
     }
     unset($storedUser);
 
     saveJsonData($usersFile, $users);
-    setRememberMeCookie($token);
+    setRememberMeCookie($token['selector'] . ':' . $token['validator']);
 }
 
 // Clears remember me for the current user
@@ -245,6 +275,9 @@ function clearRememberMeForCurrentUser(): void
 // Starts the normal logged in session
 function startAuthenticatedSession(array $user): void
 {
+    // new session id on login so an attacker can't fix the session id in advance
+    session_regenerate_id(true);
+
     $_SESSION['user_id'] = (int)$user['userId'];
     $_SESSION['user_name'] = trim(((string)($user['firstName'] ?? '')) . ' ' . ((string)($user['lastName'] ?? '')));
     $_SESSION['user_email'] = (string)($user['email'] ?? '');
@@ -257,8 +290,14 @@ function authenticateRememberedUser(): bool
         return true;
     }
 
-    $token = $_COOKIE[getRememberMeCookieName()] ?? '';
-    if ($token === '') {
+    $cookie = $_COOKIE[getRememberMeCookieName()] ?? '';
+    if ($cookie === '') {
+        return false;
+    }
+
+    $parsed = parseRememberMeCookie((string)$cookie);
+    if ($parsed === null) {
+        clearRememberMeCookie();
         return false;
     }
 
@@ -268,29 +307,31 @@ function authenticateRememberedUser(): bool
     $usersUpdated = false;
 
     foreach ($users as &$user) {
-        $hash = (string)($user['rememberTokenHash'] ?? '');
-        $expiresAt = (string)($user['rememberTokenExpiresAt'] ?? '');
-
-        if ($hash === '' || $expiresAt === '') {
+        if (!hash_equals((string)($user['rememberSelector'] ?? ''), $parsed['selector'])) {
             continue;
         }
 
-        $expiryTimestamp = strtotime($expiresAt);
-        if ($expiryTimestamp === false || $expiryTimestamp < time()) {
-            unset($user['rememberTokenHash'], $user['rememberTokenExpiresAt']);
+        $expiryTimestamp = strtotime((string)($user['rememberTokenExpiresAt'] ?? ''));
+        $expectedHash = (string)($user['rememberTokenHash'] ?? '');
+        $isValid = $expiryTimestamp !== false
+            && $expiryTimestamp >= time()
+            && $expectedHash !== ''
+            && hash_equals($expectedHash, hashRememberMeValidator($parsed['validator']));
+
+        if (!$isValid) {
+            // expired or wrong secret - wipe the token so it can't be tried again
+            unset($user['rememberSelector'], $user['rememberTokenHash'], $user['rememberTokenExpiresAt']);
             $usersUpdated = true;
-            continue;
+            break;
         }
 
-        if (!password_verify($token, $hash)) {
-            continue;
-        }
-
+        // rotate the token every time it's used
         $matchedUser = $user;
-        $newToken = bin2hex(random_bytes(32));
-        $user['rememberTokenHash'] = password_hash($newToken, PASSWORD_DEFAULT);
+        $newToken = generateRememberMeToken();
+        $user['rememberSelector'] = $newToken['selector'];
+        $user['rememberTokenHash'] = hashRememberMeValidator($newToken['validator']);
         $user['rememberTokenExpiresAt'] = date('c', time() + getRememberMeDuration());
-        setRememberMeCookie($newToken);
+        setRememberMeCookie($newToken['selector'] . ':' . $newToken['validator']);
         $usersUpdated = true;
         break;
     }

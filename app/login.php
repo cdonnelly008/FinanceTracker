@@ -38,9 +38,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // tries to find the user by email in the json file
         $matchedUser = findUserByEmail($users, $email);
 
-        if ($matchedUser === null) {
-            $errors['login'] = 'No account found with this email address. <a href="register.php">Create an account</a>';
-        } elseif (!password_verify($password, (string)($matchedUser['password'] ?? ''))) {
+        // same message whether the email exists or not, so the form can't be
+        // used to find out who has an account. we still run password_verify
+        // against a dummy hash so both cases take about the same time
+        $storedHash = (string)($matchedUser['password'] ?? '');
+        if ($storedHash === '') {
+            $storedHash = '$2y$10$iIjGJcp1iAyDOqDdKw405.GO5a8PWo1Tc9dOJ5A16DSM5S6CXz9TS';
+        }
+        $passwordOk = password_verify($password, $storedHash);
+
+        if ($matchedUser === null || !$passwordOk) {
             $errors['login'] = 'Invalid email or password. Please try again.';
         } else {
             startAuthenticatedSession($matchedUser);
@@ -118,7 +125,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </h3>
                     <ul>
                         <?php foreach ($errors as $key => $error): ?>
-                            <li><?php echo $error; ?></li>
+                            <li><?php echo sanitiseOutput($error); ?></li>
                         <?php endforeach; ?>
                     </ul>
                 </div>
@@ -145,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             required>
                     </div>
                     <?php if (isset($errors['email'])): ?>
-                        <p class="error" role="alert"><?php echo $errors['email']; ?></p>
+                        <p class="error" role="alert"><?php echo sanitiseOutput($errors['email']); ?></p>
                     <?php else: ?>
                         <small class="field-hint"><i class="fas fa-info-circle"></i> Enter the email you used to register</small>
                     <?php endif; ?>
@@ -178,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </button>
                     </div>
                     <?php if (isset($errors['password'])): ?>
-                        <p class="error" role="alert"><?php echo $errors['password']; ?></p>
+                        <p class="error" role="alert"><?php echo sanitiseOutput($errors['password']); ?></p>
                     <?php endif; ?>
                 </div>
 
