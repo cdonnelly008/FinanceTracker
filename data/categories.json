@@ -1,0 +1,27 @@
+[
+    {
+        "categoryId": 1,
+        "name": "Food",
+        "userId": null
+    },
+    {
+        "categoryId": 2,
+        "name": "Transport",
+        "userId": null
+    },
+    {
+        "categoryId": 3,
+        "name": "Bills",
+        "userId": null
+    },
+    {
+        "categoryId": 4,
+        "name": "Books",
+        "userId": null
+    },
+    {
+        "categoryId": 5,
+        "name": "Income",
+        "userId": null
+    }
+]
